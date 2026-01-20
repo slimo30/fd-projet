@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { plottingApi, ApiError, getImageUrl } from "@/lib/api";
 
 interface DataVisualizationProps {
   path: string;
@@ -49,39 +50,20 @@ export default function DataVisualization({
     setPlotUrl(null);
 
     try {
-      const response = await fetch("/api/plot/scatter", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path,
-          x: xColumn,
-          y: yColumn,
-        }),
-      });
+      const result = await plottingApi.scatterPlot(path, xColumn, yColumn);
 
-      if (!response.ok) {
-        throw new Error(
-          `Failed to generate scatter plot: ${response.statusText}`
-        );
-      }
-
-      const result = await response.json();
-
-      if (result.image_url) {
-        // Ensure absolute URL with timestamp to prevent caching
-        const baseUrl = "http://127.0.0.1:5001";
-        const cleanPath = result.image_url.startsWith("/") ? result.image_url : `/${result.image_url}`;
-        setPlotUrl(`${baseUrl}${cleanPath}`);
+      if (result.plot_url) {
+        setPlotUrl(getImageUrl(result.plot_url));
       } else {
-        throw new Error("No image URL returned from server");
+        throw new Error("No plot URL returned from server");
       }
     } catch (error) {
       console.error("Error generating scatter plot:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
+      if (error instanceof ApiError) {
+        setError(`Failed to generate scatter plot: ${error.message}`);
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -98,36 +80,20 @@ export default function DataVisualization({
     setPlotUrl(null);
 
     try {
-      const response = await fetch("/api/plot/box", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path,
-          columns: selectedColumnsForBox,
-        }),
-      });
+      const result = await plottingApi.boxPlot(path, selectedColumnsForBox);
 
-      if (!response.ok) {
-        throw new Error(`Failed to generate box plot: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.image_url) {
-        // Ensure absolute URL with timestamp to prevent caching
-        const baseUrl = "http://127.0.0.1:5001";
-        const cleanPath = result.image_url.startsWith("/") ? result.image_url : `/${result.image_url}`;
-        setPlotUrl(`${baseUrl}${cleanPath}`);
+      if (result.plot_url) {
+        setPlotUrl(getImageUrl(result.plot_url));
       } else {
-        throw new Error("No image URL returned from server");
+        throw new Error("No plot URL returned from server");
       }
     } catch (error) {
       console.error("Error generating box plot:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
+      if (error instanceof ApiError) {
+        setError(`Failed to generate box plot: ${error.message}`);
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred");
+      }
     } finally {
       setIsGenerating(false);
     }

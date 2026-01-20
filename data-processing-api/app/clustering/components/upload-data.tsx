@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { AlertCircle, Upload } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "sonner"
+import { clusteringApi, ApiError } from "@/lib/api"
 
 interface UploadDataProps {
   onUploadSuccess: (path: string) => void
@@ -38,10 +39,6 @@ export default function UploadData({ onUploadSuccess }: UploadDataProps) {
     setProgress(0)
     setError(null)
 
-    // Create a FormData object to send the file
-    const formData = new FormData()
-    formData.append("file", file)
-
     try {
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
@@ -51,27 +48,19 @@ export default function UploadData({ onUploadSuccess }: UploadDataProps) {
         })
       }, 100)
 
-      const response = await fetch("http://localhost:5001/upload-data-clustering", {
-        method: "POST",
-        body: formData,
-      })
+      const data = await clusteringApi.uploadData(file)
 
       clearInterval(progressInterval)
       setProgress(100)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to upload file")
-      }
-
-      const data = await response.json()
       setDataPreview(data.head)
       onUploadSuccess(data.path)
       toast.success("File uploaded successfully")
     } catch (err: any) {
-      setError(err.message || "An error occurred during upload")
+      const errorMessage = err instanceof ApiError ? err.message : (err.message || "An error occurred during upload")
+      setError(errorMessage)
       toast.error("Upload failed", {
-        description: err.message,
+        description: errorMessage,
       })
     } finally {
       setUploading(false)

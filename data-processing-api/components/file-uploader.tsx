@@ -6,9 +6,10 @@ import { useState } from "react"
 import { Upload, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { dataApi, ApiError } from "@/lib/api"
 
 interface FileUploaderProps {
-  onFileUploaded: (path: string) => void
+  onFileUploaded: (path: string, columns: string[]) => void
 }
 
 export default function FileUploader({ onFileUploaded }: FileUploaderProps) {
@@ -32,10 +33,7 @@ export default function FileUploader({ onFileUploaded }: FileUploaderProps) {
 
     setIsUploading(true)
     setUploadProgress(0)
-
-    // Create a FormData object to send the file
-    const formData = new FormData()
-    formData.append("file", file)
+    setError(null)
 
     try {
       // Simulate progress for better UX
@@ -46,28 +44,23 @@ export default function FileUploader({ onFileUploaded }: FileUploaderProps) {
         })
       }, 100)
 
-      const response = await fetch("/api/upload-data", {
-        method: "POST",
-        body: formData,
-      })
+      const data = await dataApi.uploadData(file)
 
       clearInterval(progressInterval)
       setUploadProgress(100)
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data.path) {
-        onFileUploaded(data.path)
+      if (data.path && data.columns) {
+        onFileUploaded(data.path, data.columns)
       } else {
-        throw new Error("No path returned from server")
+        throw new Error("No path or columns returned from server")
       }
     } catch (error) {
       console.error("Error uploading file:", error)
-      setError(error instanceof Error ? error.message : "An unknown error occurred")
+      if (error instanceof ApiError) {
+        setError(`Upload failed: ${error.message}`)
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred")
+      }
     } finally {
       setIsUploading(false)
     }
@@ -76,6 +69,7 @@ export default function FileUploader({ onFileUploaded }: FileUploaderProps) {
   const handleCreateSample = async () => {
     setIsUploading(true)
     setUploadProgress(0)
+    setError(null)
 
     try {
       // Simulate progress for better UX
@@ -86,27 +80,23 @@ export default function FileUploader({ onFileUploaded }: FileUploaderProps) {
         })
       }, 100)
 
-      const response = await fetch("/api/create-sample", {
-        method: "POST",
-      })
+      const data = await dataApi.createSample()
 
       clearInterval(progressInterval)
       setUploadProgress(100)
 
-      if (!response.ok) {
-        throw new Error(`Failed to create sample: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data.path) {
-        onFileUploaded(data.path)
+      if (data.path && data.columns) {
+        onFileUploaded(data.path, data.columns)
       } else {
-        throw new Error("No path returned from server")
+        throw new Error("No path or columns returned from server")
       }
     } catch (error) {
       console.error("Error creating sample data:", error)
-      setError(error instanceof Error ? error.message : "An unknown error occurred")
+      if (error instanceof ApiError) {
+        setError(`Failed to create sample: ${error.message}`)
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred")
+      }
     } finally {
       setIsUploading(false)
     }

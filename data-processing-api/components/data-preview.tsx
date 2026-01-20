@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { dataApi, ApiError } from "@/lib/api";
 
 interface DataPreviewProps {
   path: string;
@@ -42,20 +43,16 @@ export default function DataPreview({
       setError(null);
 
       try {
-        const response = await fetch(`/api/data/head?path=${path}`);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data: ${response.statusText}`);
-        }
-
-        const result = await response.json();
+        const result = await dataApi.getDataHead(path);
         setData(result || []);
         setSelectedColumns(columns);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        if (error instanceof ApiError) {
+          setError(`Failed to fetch data: ${error.message}`);
+        } else {
+          setError(error instanceof Error ? error.message : "An unknown error occurred");
+        }
       } finally {
         setLoading(false);
       }
@@ -86,30 +83,17 @@ export default function DataPreview({
     setError(null);
 
     try {
-      const response = await fetch("/api/data/select-columns", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path,
-          columns: selectedColumns,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to apply selection: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
+      const result = await dataApi.selectColumns(path, selectedColumns);
+      
       // The Flask API doesn't change the path, so we use the same path
       onColumnsSelected(path);
     } catch (error) {
       console.error("Error applying column selection:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
+      if (error instanceof ApiError) {
+        setError(`Failed to apply selection: ${error.message}`);
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred");
+      }
     } finally {
       setIsApplying(false);
       setIsSelecting(false);
@@ -131,7 +115,7 @@ export default function DataPreview({
         <Button
           variant="outline"
           className="mt-2"
-          onClick={() => setError(null)}
+          onClick={() => window.location.reload()}
         >
           Retry
         </Button>

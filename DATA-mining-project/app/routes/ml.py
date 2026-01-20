@@ -42,6 +42,10 @@ def prepare_data(df, target_col, test_size=0.2, is_classification=False):
     # Encode features if they are object type
     for col in X.select_dtypes(include=['object']).columns:
         X[col] = le.fit_transform(X[col])
+    
+    # Convert to numpy arrays to avoid sklearn compatibility issues
+    X = X.values if hasattr(X, 'values') else X
+    y = y if isinstance(y, np.ndarray) else np.array(y)
         
     return train_test_split(X, y, test_size=test_size, random_state=42)
 

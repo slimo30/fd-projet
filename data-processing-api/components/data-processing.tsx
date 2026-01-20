@@ -15,6 +15,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { dataApi, ApiError } from "@/lib/api";
 
 interface DataProcessingProps {
   path: string;
@@ -59,37 +60,22 @@ export default function DataProcessing({
 
     try {
       // Create fill strategy object
-      const fill: Record<string, string> = {};
+      const fill: Record<string, 'mean' | 'median' | 'mode'> = {};
       selectedColumnsForMissing.forEach((column) => {
-        fill[column] = fillStrategy;
+        fill[column] = fillStrategy as 'mean' | 'median' | 'mode';
       });
 
-      const response = await fetch("/api/data/fill-missing", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path,
-          fill,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fill missing values: ${response.statusText}`
-        );
-      }
-
-      const result = await response.json();
+      await dataApi.fillMissing(path, fill);
 
       // The Flask API doesn't change the path, so we use the same path
       onProcessingComplete(path);
     } catch (error) {
       console.error("Error filling missing values:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
+      if (error instanceof ApiError) {
+        setError(`Failed to fill missing values: ${error.message}`);
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -105,31 +91,21 @@ export default function DataProcessing({
     setError(null);
 
     try {
-      const response = await fetch("/api/data/normalize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path,
-          method: normalizationMethod,
-          columns: selectedColumnsForNormalization,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to normalize data: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      await dataApi.normalize(
+        path,
+        normalizationMethod as 'zscore' | 'minmax',
+        selectedColumnsForNormalization
+      );
 
       // The Flask API doesn't change the path, so we use the same path
       onProcessingComplete(path);
     } catch (error) {
       console.error("Error normalizing data:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
+      if (error instanceof ApiError) {
+        setError(`Failed to normalize data: ${error.message}`);
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -145,33 +121,21 @@ export default function DataProcessing({
     setError(null);
 
     try {
-      const response = await fetch("/api/data/categorical-to-numerical", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          path,
-          method: encodingMethod,
-          columns: selectedColumnsForCategorical,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to convert categorical data: ${response.statusText}`
-        );
-      }
-
-      const result = await response.json();
+      await dataApi.categoricalToNumerical(
+        path,
+        encodingMethod as 'label' | 'onehot',
+        selectedColumnsForCategorical
+      );
 
       // The Flask API doesn't change the path, so we use the same path
       onProcessingComplete(path);
     } catch (error) {
       console.error("Error converting categorical data:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
+      if (error instanceof ApiError) {
+        setError(`Failed to convert categorical data: ${error.message}`);
+      } else {
+        setError(error instanceof Error ? error.message : "An unknown error occurred");
+      }
     } finally {
       setIsProcessing(false);
     }

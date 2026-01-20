@@ -35,7 +35,7 @@ def generate_scatter_plot():
         plt.title(f'Scatter Plot: {x_col} vs {y_col}')
         
         plot_url = save_plot(fig, current_app.config['STATIC_FOLDER'], 'scatter')
-        return jsonify({'image_url': plot_url})
+        return jsonify({'plot_url': plot_url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -61,6 +61,6 @@ def generate_box_plot():
         plt.title('Box Plot')
         
         plot_url = save_plot(fig, current_app.config['STATIC_FOLDER'], 'box')
-        return jsonify({'image_url': plot_url})
+        return jsonify({'plot_url': plot_url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
