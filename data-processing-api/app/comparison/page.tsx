@@ -20,7 +20,7 @@ export default function ComparisonPage() {
     setError(null)
 
     try {
-      const response = await fetch("http://localhost:5000/clustering/comparison")
+      const response = await fetch("http://localhost:5001/clustering/comparison")
 
       if (!response.ok) {
         throw new Error("Failed to fetch comparison data")
@@ -101,7 +101,7 @@ export default function ComparisonPage() {
                       <h3 className="text-lg font-medium mb-2">Comparison Visualization</h3>
                       <div className="border rounded-md p-2 bg-white">
                         <Image
-                          src={`http://localhost:5000${plotUrl}`}
+                          src={`http://localhost:5001${plotUrl}`}
                           alt="Algorithm Comparison Plot"
                           width={800}
                           height={400}

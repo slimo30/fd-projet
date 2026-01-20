@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const apiUrl = `http://localhost:5000${url}`
+    const apiUrl = `http://localhost:5001${url}`
     const contentType = request.headers.get("Content-Type")
 
     // Forward the request to the Python API
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const apiUrl = `http://localhost:5000${url}`
+    const apiUrl = `http://localhost:5001${url}`
 
     // Forward the request to the Python API
     const response = await fetch(apiUrl)

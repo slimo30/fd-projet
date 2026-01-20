@@ -63,9 +63,10 @@ export function ResultDisplay({ result }: ResultDisplayProps) {
                   <h3 className="text-lg font-medium mb-2">Visualization</h3>
                   <div className="border rounded-md p-2 bg-white">
                     <img
-                      src={`http://localhost:5000${result.plot_url}`}
-                      alt="Clustering Visualization"
-                      className="mx-auto"
+                      // Assume the backend returns a relative path like /static/plot.png
+                      // We need to prepend the backend URL
+                      src={`http://localhost:5001${result.plot_url}`}
+                      alt="Data Visualization"
                     />
                   </div>
                 </div>

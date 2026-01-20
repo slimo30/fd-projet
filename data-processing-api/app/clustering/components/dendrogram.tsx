@@ -25,7 +25,7 @@ export default function Dendrogram({ filePath }: DendrogramProps) {
     setImageUrl(null)
 
     try {
-      const response = await fetch("http://localhost:5000/clustering/dendrogram", {
+      const response = await fetch("http://localhost:5001/clustering/dendrogram", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -45,7 +45,7 @@ export default function Dendrogram({ filePath }: DendrogramProps) {
 
       const data = await response.json()
       // Use the full URL directly
-      setImageUrl(`http://localhost:5000${data.image_url}`)
+      setImageUrl(`http://localhost:5001${data.image_url}`)
     } catch (err: any) {
       setError(err.message || "An error occurred")
     } finally {

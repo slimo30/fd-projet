@@ -25,7 +25,7 @@ export default function ComparisonView() {
     setError(null)
 
     try {
-      const response = await fetch("http://localhost:5000/clustering/comparison")
+      const response = await fetch("http://localhost:5001/clustering/comparison")
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -34,7 +34,7 @@ export default function ComparisonView() {
 
       const data = await response.json()
       // Use the full URL directly if plot_url exists
-      setImageUrl(data.plot_url ? `http://localhost:5000${data.plot_url}` : null)
+      setImageUrl(data.plot_url ? `http://localhost:5001${data.plot_url}` : null)
       setComparisonData(data.comparison || null)
     } catch (err: any) {
       setError(err.message || "An error occurred")

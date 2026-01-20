@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Forward the request to the Flask API
-    const response = await fetch(`http://127.0.0.1:5000/data/columns?path=${encodeURIComponent(path)}`)
+    const response = await fetch(`http://127.0.0.1:5001/data/columns?path=${encodeURIComponent(path)}`)
 
     if (!response.ok) {
       throw new Error(`Flask API error: ${response.statusText}`)

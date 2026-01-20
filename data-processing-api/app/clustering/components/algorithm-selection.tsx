@@ -25,7 +25,7 @@ export default function AlgorithmSelection({ filePath, onAlgorithmSelect }: Algo
     setSuccess(false)
 
     try {
-      const response = await fetch("http://localhost:5000/clustering/select", {
+      const response = await fetch("http://localhost:5001/clustering/select", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

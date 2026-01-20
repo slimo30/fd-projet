@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
 
     // Forward the request to the Flask API
-    const response = await fetch("http://127.0.0.1:5000/plot/box", {
+    const response = await fetch("http://127.0.0.1:5001/plot/box", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const formData = new FormData();
     formData.append("file", sampleFile);
 
-    const response = await fetch("http://127.0.0.1:5000/upload-data", {
+    const response = await fetch("http://127.0.0.1:5001/upload-data", {
       method: "POST",
       body: formData,
     });

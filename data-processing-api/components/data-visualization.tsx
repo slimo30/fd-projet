@@ -70,8 +70,10 @@ export default function DataVisualization({
       const result = await response.json();
 
       if (result.image_url) {
-        // Fix: Use the full URL without prepending the localhost
-        setPlotUrl(result.image_url);
+        // Ensure absolute URL with timestamp to prevent caching
+        const baseUrl = "http://127.0.0.1:5001";
+        const cleanPath = result.image_url.startsWith("/") ? result.image_url : `/${result.image_url}`;
+        setPlotUrl(`${baseUrl}${cleanPath}`);
       } else {
         throw new Error("No image URL returned from server");
       }
@@ -114,8 +116,10 @@ export default function DataVisualization({
       const result = await response.json();
 
       if (result.image_url) {
-        // Fix: Use the full URL without prepending the localhost
-        setPlotUrl(result.image_url);
+        // Ensure absolute URL with timestamp to prevent caching
+        const baseUrl = "http://127.0.0.1:5001";
+        const cleanPath = result.image_url.startsWith("/") ? result.image_url : `/${result.image_url}`;
+        setPlotUrl(`${baseUrl}${cleanPath}`);
       } else {
         throw new Error("No image URL returned from server");
       }
@@ -270,11 +274,17 @@ export default function DataVisualization({
         <div className="mt-4 border rounded-md p-4">
           <h3 className="text-lg font-medium mb-2">Plot Preview</h3>
           <div className="flex justify-center">
+            {/* key={plotUrl} forces React to re-render the img element when URL changes */}
             <img
+              key={plotUrl}
               src={plotUrl || "/placeholder.svg"}
               alt="Data visualization"
               className="max-w-full h-auto rounded-md"
               style={{ maxHeight: "400px" }}
+              onError={(e) => {
+                console.error("Error loading image:", plotUrl);
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
           <div className="mt-2 flex justify-center">

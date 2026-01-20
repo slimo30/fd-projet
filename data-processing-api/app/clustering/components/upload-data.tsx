@@ -51,7 +51,7 @@ export default function UploadData({ onUploadSuccess }: UploadDataProps) {
         })
       }, 100)
 
-      const response = await fetch("http://localhost:5000/upload-data-clustering", {
+      const response = await fetch("http://localhost:5001/upload-data-clustering", {
         method: "POST",
         body: formData,
       })

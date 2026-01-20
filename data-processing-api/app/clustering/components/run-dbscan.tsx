@@ -34,7 +34,7 @@ export default function RunDBSCAN({ filePath }: RunDBSCANProps) {
     setMetrics(null)
 
     try {
-      const response = await fetch("http://localhost:5000/clustering/dbscan", {
+      const response = await fetch("http://localhost:5001/clustering/dbscan", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,7 +53,7 @@ export default function RunDBSCAN({ filePath }: RunDBSCANProps) {
 
       const data = await response.json()
       // Use the full URL directly
-      setImageUrl(`http://localhost:5000${data.plot_url}`)
+      setImageUrl(`http://localhost:5001${data.plot_url}`)
       setMetrics(data.performance)
     } catch (err: any) {
       setError(err.message || "An error occurred")

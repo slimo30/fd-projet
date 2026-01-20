@@ -24,7 +24,7 @@ export default function ElbowMethod({ filePath, algorithm }: ElbowMethodProps) {
     setImageUrl(null)
 
     try {
-      const response = await fetch("http://localhost:5000/clustering/elbow", {
+      const response = await fetch("http://localhost:5001/clustering/elbow", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -43,7 +43,7 @@ export default function ElbowMethod({ filePath, algorithm }: ElbowMethodProps) {
 
       const data = await response.json()
       // Use the full URL directly
-      setImageUrl(`http://localhost:5000${data.image_url}`)
+      setImageUrl(`http://localhost:5001${data.image_url}`)
     } catch (err: any) {
       setError(err.message || "An error occurred")
     } finally {

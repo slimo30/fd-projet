@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Construct the Flask API URL
-    const flaskUrl = `http://127.0.0.1:5000/data/statistics?path=${encodeURIComponent(
+    const flaskUrl = `http://127.0.0.1:5001/data/statistics?path=${encodeURIComponent(
       path
     )}`;
     console.log(`Sending request to: ${flaskUrl}`);
