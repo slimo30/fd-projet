@@ -7,6 +7,7 @@ class GlobalState:
             cls._instance.df = None
             cls._instance.current_filepath = None
             cls._instance.clustering_results = {}
+            cls._instance.ml_results = {}
         return cls._instance
 
 # Create a singleton instance to be imported

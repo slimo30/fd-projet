@@ -10,6 +10,8 @@ import DataPreview from "@/components/data-preview"
 import DataStatistics from "@/components/data-statistics"
 import DataProcessing from "@/components/data-processing"
 import DataVisualization from "@/components/data-visualization"
+import MlAnalysis from "@/components/ml-analysis"
+import MlComparison from "@/components/ml-comparison"
 
 export default function Home() {
   const [currentPath, setCurrentPath] = useState<string | null>(null)
@@ -59,6 +61,14 @@ export default function Home() {
           <TabsTrigger value="visualization" disabled={!currentPath} className="flex items-center gap-2">
             <BarChart4 className="h-4 w-4" />
             <span className="hidden sm:inline">Visualization</span>
+          </TabsTrigger>
+          <TabsTrigger value="ml-analysis" disabled={!currentPath} className="flex items-center gap-2">
+            <BarChart4 className="h-4 w-4" />
+            <span className="hidden sm:inline">ML Analysis</span>
+          </TabsTrigger>
+          <TabsTrigger value="ml-comparison" disabled={!currentPath} className="flex items-center gap-2">
+             <BarChart4 className="h-4 w-4" />
+            <span className="hidden sm:inline">Comparison</span>
           </TabsTrigger>
         </TabsList>
 
@@ -137,6 +147,34 @@ export default function Home() {
                 <DataVisualization path={currentPath} columns={columns} />
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ml-analysis">
+          {currentPath && (
+            <Card>
+              <CardHeader>
+                <CardTitle>ML Analysis</CardTitle>
+                <CardDescription>Run Machine Learning algorithms</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MlAnalysis path={currentPath} columns={columns} />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ml-comparison">
+          {currentPath && (
+             <Card>
+                <CardHeader>
+                   <CardTitle>ML Comparison</CardTitle>
+                   <CardDescription>Compare performance of different models</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <MlComparison />
+                </CardContent>
+             </Card>
           )}
         </TabsContent>
       </Tabs>
