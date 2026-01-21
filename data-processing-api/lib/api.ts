@@ -27,7 +27,7 @@ async function apiFetch<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`;
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -39,7 +39,7 @@ async function apiFetch<T = any>(
 
     let data;
     const contentType = response.headers.get('content-type');
-    
+
     if (contentType && contentType.includes('application/json')) {
       const text = await response.text();
       // Replace NaN with null before parsing JSON
@@ -63,7 +63,7 @@ async function apiFetch<T = any>(
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     // Network or other errors
     throw new ApiError(
       0,
@@ -106,20 +106,31 @@ export const dataApi = {
   /**
    * Create sample data
    */
-  createSample: async (): Promise<{
+  createSample: async (clean: boolean = false): Promise<{
     message: string;
     columns: string[];
     head: any[];
     path: string;
+    is_clean?: boolean;
   }> => {
-    return apiFetch('/create-sample', { method: 'POST' });
+    return apiFetch('/create-sample', {
+      method: 'POST',
+      body: JSON.stringify({ clean }),
+    });
   },
 
   /**
-   * Get data head (first rows)
+   * Get data head (first rows or representative sample)
    */
-  getDataHead: async (path: string): Promise<any[]> => {
-    return apiFetch(`/data/head?path=${encodeURIComponent(path)}`);
+  getDataHead: async (path: string, limit: number = 40, sample: boolean = true): Promise<any[]> => {
+    const params = new URLSearchParams({ path });
+    if (limit !== undefined) {
+      params.append('limit', limit.toString());
+    }
+    if (sample !== undefined) {
+      params.append('sample', sample.toString());
+    }
+    return apiFetch(`/data/head?${params.toString()}`);
   },
 
   /**
@@ -208,6 +219,28 @@ export const dataApi = {
     return apiFetch('/data/save', {
       method: 'POST',
       body: JSON.stringify({ new_path: newPath }),
+    });
+  },
+
+  /**
+   * Generate KNN optimization plot
+   */
+  getKNNOptimization: async (
+    path: string,
+    column: string,
+    maxK: number = 20
+  ): Promise<{
+    success: boolean;
+    plot_url: string;
+    optimal_k: number;
+    min_error: number;
+    k_values: number[];
+    errors: number[];
+    message: string;
+  }> => {
+    return apiFetch('/data/knn-optimization', {
+      method: 'POST',
+      body: JSON.stringify({ path, column, max_k: maxK }),
     });
   },
 };
@@ -497,6 +530,138 @@ export const mlApi = {
    */
   getComparison: async (): Promise<Record<string, any>> => {
     return apiFetch('/ml/comparison');
+  },
+
+  /**
+   * Make prediction with trained model
+   */
+  predict: async (
+    algorithm: string,
+    input: number[]
+  ): Promise<{
+    success: boolean;
+    prediction: number | number[];
+    features_used: string[];
+    input_values: number[];
+    probability?: number[];
+  }> => {
+    return apiFetch(`/ml/predict/${algorithm}`, {
+      method: 'POST',
+      body: JSON.stringify({ input }),
+    });
+  },
+
+  /**
+   * Get trained model information
+   */
+  getModelInfo: async (
+    algorithm: string
+  ): Promise<{
+    algorithm: string;
+    features: string[];
+    has_scaler: boolean;
+    is_trained: boolean;
+  }> => {
+    return apiFetch(`/ml/model-info/${algorithm}`);
+  },
+};
+
+// ============================================================================
+// CNN API
+// ============================================================================
+
+export const cnnApi = {
+  getDatasets: async (): Promise<{
+    success: boolean;
+    datasets: Record<string, any>;
+  }> => {
+    return apiFetch('/cnn/datasets');
+  },
+
+  getDatasetInfo: async (dataset: string): Promise<{
+    success: boolean;
+    info: any;
+  }> => {
+    return apiFetch('/cnn/info', {
+      method: 'POST',
+      body: JSON.stringify({ dataset }),
+    });
+  },
+
+  visualizeSamples: async (dataset: string, num_samples: number = 10): Promise<{
+    success: boolean;
+    plot_url: string;
+    dataset: string;
+    num_samples: number;
+  }> => {
+    return apiFetch('/cnn/visualize-samples', {
+      method: 'POST',
+      body: JSON.stringify({ dataset, num_samples }),
+    });
+  },
+
+  train: async (
+    dataset: string,
+    epochs: number = 10,
+    batch_size: number = 32,
+    test_size: number = 0.2
+  ): Promise<{
+    success: boolean;
+    metrics: any;
+    model_summary: string;
+    history_plot_url: string;
+    confusion_matrix_plot_url: string;
+    training_params: any;
+  }> => {
+    return apiFetch('/cnn/train', {
+      method: 'POST',
+      body: JSON.stringify({ dataset, epochs, batch_size, test_size }),
+    });
+  },
+
+  getPredictions: async (): Promise<{
+    success: boolean;
+    plot_url: string;
+    dataset: string;
+    predictions: any[];
+  }> => {
+    return apiFetch('/cnn/predictions');
+  },
+
+  getErrorAnalysis: async (): Promise<{
+    success: boolean;
+    plot_url?: string;
+    dataset?: string;
+    num_errors: number;
+    total_samples?: number;
+    error_rate?: number;
+    errors?: any[];
+    message?: string;
+  }> => {
+    return apiFetch('/cnn/error-analysis');
+  },
+
+  getArchitecture: async (dataset: string): Promise<{
+    success: boolean;
+    dataset: string;
+    model_summary: string;
+    layers: any[];
+    total_params: number;
+    input_shape: number[];
+    num_classes: number;
+  }> => {
+    return apiFetch('/cnn/architecture', {
+      method: 'POST',
+      body: JSON.stringify({ dataset }),
+    });
+  },
+
+  compareDatasets: async (): Promise<{
+    success: boolean;
+    plot_url: string;
+    comparison: any;
+  }> => {
+    return apiFetch('/cnn/compare-datasets');
   },
 };
 

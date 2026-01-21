@@ -11,14 +11,19 @@ import ModelConfiguration from "./components/model-configuration";
 import ModelResults from "./components/model-results";
 import ComparisonView from "./components/comparison-view";
 
+
 export default function MLPage() {
   const { dataPath, columns, hasData } = useData();
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("");
+  const [selectedAlgorithmName, setSelectedAlgorithmName] = useState<string>("");
   const [results, setResults] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>("algorithm");
 
   const handleAlgorithmSelected = (algorithm: string) => {
     setSelectedAlgorithm(algorithm);
+    // Assuming algorithm name can be derived or is the same as the id for now
+    const algorithmName = algorithm.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    setSelectedAlgorithmName(algorithmName);
     setActiveTab("configuration");
   };
 
@@ -36,7 +41,7 @@ export default function MLPage() {
             Train and evaluate machine learning models
           </p>
         </div>
-        
+
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -70,6 +75,7 @@ export default function MLPage() {
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Results</span>
           </TabsTrigger>
+
           <TabsTrigger value="comparison" className="gap-2">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Compare</span>
@@ -98,7 +104,7 @@ export default function MLPage() {
               <CardHeader>
                 <CardTitle>Configure & Run</CardTitle>
                 <CardDescription>
-                  Set parameters for {selectedAlgorithm}
+                  Set parameters for {selectedAlgorithmName || selectedAlgorithm}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -128,6 +134,8 @@ export default function MLPage() {
             </Card>
           )}
         </TabsContent>
+
+
 
         <TabsContent value="comparison">
           <Card>

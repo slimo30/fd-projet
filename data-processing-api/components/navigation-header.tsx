@@ -16,12 +16,19 @@ const navItems = [
     href: "/ml",
     icon: Brain,
   },
+  /*
   {
     name: "Clustering",
     href: "/clustering",
     icon: Network,
   },
-]
+  */
+  {
+    name: "Neural Networks",
+    href: "/cnn",
+    icon: Network,
+  },
+];
 
 export function NavigationHeader() {
   const pathname = usePathname()
@@ -37,22 +44,22 @@ export function NavigationHeader() {
               </div>
               <span className="hidden sm:inline-block">Data Platform</span>
             </Link>
-            
+
             <nav className="flex items-center gap-1">
               {navItems.map((item) => {
                 const Icon = item.icon
-                const isActive = pathname === item.href || 
-                               (item.href !== "/" && pathname.startsWith(item.href))
-                
+                const isActive = pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href))
+
                 return (
-                  <Link 
-                    key={item.href} 
+                  <Link
+                    key={item.href}
                     href={item.href}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                       "hover:bg-accent hover:text-accent-foreground",
-                      isActive 
-                        ? "bg-accent text-accent-foreground" 
+                      isActive
+                        ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground"
                     )}
                   >

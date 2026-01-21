@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Brain, Network, TreeDeciduous, TrendingUp, Layers } from "lucide-react";
 
 interface AlgorithmSelectionProps {
-  onAlgorithmSelected: (algorithm: string) => void;
+  onAlgorithmSelected: (algorithm: string, algorithmName: string) => void;
 }
 
 const algorithms = [
@@ -50,9 +50,9 @@ const algorithms = [
 export default function AlgorithmSelection({ onAlgorithmSelected }: AlgorithmSelectionProps) {
   const [selected, setSelected] = useState<string>("");
 
-  const handleSelect = (algorithmId: string) => {
+  const handleSelect = (algorithmId: string, algorithmName: string) => {
     setSelected(algorithmId);
-    onAlgorithmSelected(algorithmId);
+    onAlgorithmSelected(algorithmId, algorithmName);
   };
 
   return (
@@ -65,7 +65,7 @@ export default function AlgorithmSelection({ onAlgorithmSelected }: AlgorithmSel
             className={`cursor-pointer transition-all hover:shadow-lg ${
               selected === algo.id ? "ring-2 ring-primary" : ""
             }`}
-            onClick={() => handleSelect(algo.id)}
+            onClick={() => handleSelect(algo.id, algo.name)}
           >
             <CardHeader>
               <div className="flex items-center gap-3">

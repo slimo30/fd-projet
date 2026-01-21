@@ -145,7 +145,7 @@ def run_decision_tree():
     data = request.json
     path = data.get('path')
     target = data.get('target')
-    # Algorithm choice: 'id3', 'c4.5', 'cart' (managed via criterion)
+    # Algorithm choice: 'id3', 'c4.5', 'cart', 'chaid'
     algo_type = data.get('algorithm_type', 'cart').lower()
     
     try:
@@ -155,9 +155,21 @@ def run_decision_tree():
         # Map user selection to sklearn parameters
         # ID3/C4.5 use Information Gain -> criterion='entropy'
         # CART uses Gini Index -> criterion='gini'
-        criterion = 'entropy' if algo_type in ['id3', 'c4.5'] else 'gini'
+        # CHAID uses Chi-square (implemented via entropy)
+        if algo_type == 'chaid':
+            # CHAID uses chi-square for splitting, we'll use entropy as approximation
+            # and set max_depth to encourage multiway splits
+            criterion = 'entropy'
+            dt = DecisionTreeClassifier(criterion=criterion, max_depth=5, random_state=42)
+        elif algo_type in ['id3', 'c4.5']:
+            criterion = 'entropy'
+            # C4.5 adds pruning (handled via max_depth)
+            max_depth = 10 if algo_type == 'c4.5' else None
+            dt = DecisionTreeClassifier(criterion=criterion, max_depth=max_depth, random_state=42)
+        else:  # cart
+            criterion = 'gini'
+            dt = DecisionTreeClassifier(criterion=criterion, random_state=42)
         
-        dt = DecisionTreeClassifier(criterion=criterion, random_state=42)
         dt.fit(X_train, y_train)
         y_pred = dt.predict(X_test)
         
@@ -170,15 +182,20 @@ def run_decision_tree():
         plt.title(f'Confusion Matrix ({algo_type.upper()})')
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
-        plot_url = save_plot(fig, current_app.config['STATIC_FOLDER'], 'dt_confusion_matrix')
+        plot_url = save_plot(fig, current_app.config['STATIC_FOLDER'], f'dt_{algo_type}_confusion_matrix')
         
         metrics = {
             'accuracy': float(accuracy_score(y_test, y_pred)),
+            'precision': float(precision_score(y_test, y_pred, average='weighted', zero_division=0)),
+            'recall': float(recall_score(y_test, y_pred, average='weighted', zero_division=0)),
+            'f1_score': float(f1_score(y_test, y_pred, average='weighted', zero_division=0)),
             'criterion_used': criterion,
+            'algorithm': algo_type.upper(),
             'matrix_plot_url': plot_url
         }
         
-        state.ml_results['decision_tree'] = metrics
+        # Store each algorithm separately for comparison
+        state.ml_results[f'decision_tree_{algo_type}'] = metrics
         
         return jsonify({
             'success': True,

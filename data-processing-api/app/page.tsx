@@ -68,10 +68,6 @@ export default function Home() {
         <TabsContent value="preview">
           {dataPath && (
             <Card>
-              <CardHeader>
-                <CardTitle>Data Preview</CardTitle>
-                <CardDescription>Review your data and select columns</CardDescription>
-              </CardHeader>
               <CardContent>
                 <DataPreview
                   path={dataPath}

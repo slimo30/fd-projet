@@ -4,6 +4,7 @@ from app.config import Config
 from app.routes.data import data_bp
 from app.routes.plotting import plotting_bp
 from app.routes.clustering import clustering_bp
+from app.routes.cnn import cnn_bp
 from app.routes.ml import ml_bp
 from app.routes import main_bp
 import os
@@ -22,6 +23,7 @@ def create_app(config_class=Config):
     app.register_blueprint(plotting_bp)
     app.register_blueprint(clustering_bp)
     app.register_blueprint(ml_bp)
+    app.register_blueprint(cnn_bp)
     
     # Explicitly serve static files from the configured STATIC_FOLDER
     @app.route('/static/<path:filename>')
