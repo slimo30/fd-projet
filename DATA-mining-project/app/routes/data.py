@@ -385,6 +385,71 @@ def categorical_to_numerical():
     except Exception as e:
          return jsonify({'error': str(e)}), 500
 
+@data_bp.route('/data/binarize', methods=['POST'])
+def binarize_data():
+    data = request.get_json()
+    path = data.get('path')
+    column = data.get('column')
+    zero_group = data.get('zero_group')  # e.g. ["CL0", "CL1"]
+    threshold = data.get('threshold', None)
+    
+    if not path or not column or not is_safe_path(current_app.config['UPLOAD_FOLDER'], path):
+        return jsonify({'error': 'Invalid request'}), 400
+    
+    if path != state.current_filepath or state.df is None:
+        try:
+            state.df = pd.read_csv(path)
+            state.current_filepath = path
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+            
+    try:
+        if column not in state.df.columns:
+            return jsonify({'error': f'Column {column} not found'}), 400
+            
+        if threshold is not None:
+            # Numeric binarization
+            state.df[column] = (state.df[column] > float(threshold)).astype(int)
+        elif zero_group is not None:
+            # Categorical binarization
+            state.df[column] = state.df[column].apply(lambda x: 0 if str(x) in zero_group else 1)
+        else:
+            return jsonify({'error': 'Either zero_group or threshold must be provided'}), 400
+            
+        state.df.to_csv(state.current_filepath, index=False)
+        return jsonify({'message': f'Column {column} binarized successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@data_bp.route('/data/ordinal-map', methods=['POST'])
+def ordinal_map():
+    data = request.get_json()
+    path = data.get('path')
+    column = data.get('column')
+    order = data.get('order')  # Ordered list of values
+    
+    if not path or not column or not order or not is_safe_path(current_app.config['UPLOAD_FOLDER'], path):
+        return jsonify({'error': 'Invalid request'}), 400
+        
+    if path != state.current_filepath or state.df is None:
+        try:
+            state.df = pd.read_csv(path)
+            state.current_filepath = path
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+            
+    try:
+        if column not in state.df.columns:
+            return jsonify({'error': f'Column {column} not found'}), 400
+            
+        mapping = {val: i for i, val in enumerate(order)}
+        state.df[column] = state.df[column].map(mapping)
+        
+        state.df.to_csv(state.current_filepath, index=False)
+        return jsonify({'message': f'Column {column} ordinal mapped successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @data_bp.route('/data/save', methods=['POST'])
 def save_data():
     data = request.get_json()

@@ -7,7 +7,7 @@ interface DataContextType {
   processedPath: string | null
   columns: string[]
   setData: (path: string, cols: string[]) => void
-  updateProcessedPath: (path: string) => void
+  updateProcessedPath: (path: string, cols?: string[]) => void
   clearData: () => void
   hasData: boolean
 }
@@ -24,9 +24,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setColumns(cols)
   }
 
-  const updateProcessedPath = (path: string) => {
+  const updateProcessedPath = (path: string, cols?: string[]) => {
     setProcessedPath(path)
     setDataPath(path)
+    if (cols) {
+      setColumns(cols)
+    }
   }
 
   const clearData = () => {
@@ -36,11 +39,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <DataContext.Provider value={{ 
-      dataPath, 
+    <DataContext.Provider value={{
+      dataPath,
       processedPath,
-      columns, 
-      setData, 
+      columns,
+      setData,
       updateProcessedPath,
       clearData,
       hasData: !!dataPath

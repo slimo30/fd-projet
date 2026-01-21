@@ -28,7 +28,7 @@ import { dataApi, ApiError } from "@/lib/api";
 interface DataProcessingProps {
   path: string;
   columns: string[];
-  onProcessingComplete: (newPath: string) => void;
+  onProcessingComplete: (newPath: string, newColumns?: string[]) => void;
 }
 
 export default function DataProcessing({
@@ -62,18 +62,22 @@ export default function DataProcessing({
   const [encodingMethod, setEncodingMethod] = useState<string>("label");
   const [savePath, setSavePath] = useState<string>("");
 
+  // Advanced state
+  const [selectedColumnForBinarize, setSelectedColumnForBinarize] = useState<string>("");
+  const [binarizeZeroGroup, setBinarizeZeroGroup] = useState<string>("");
+  const [binarizeThreshold, setBinarizeThreshold] = useState<string>("");
+  const [selectedColumnForOrdinal, setSelectedColumnForOrdinal] = useState<string>("");
+  const [ordinalOrder, setOrdinalOrder] = useState<string>("");
+
   const handleSaveData = async () => {
     if (!savePath) {
       setError("Please enter a filename");
       return;
     }
 
-    // Ensure .csv extension
     const filename = savePath.endsWith('.csv') ? savePath : `${savePath}.csv`;
-    // Construct full path - simplistic approach, ideally handled by backend
-    // but here we just pass the filename assuming backend handles the directory
-    // or we construct a path in the same directory as the current file
-    const directory = path.substring(0, path.lastIndexOf('/') + 1);
+    const lastSlashIndex = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    const directory = lastSlashIndex === -1 ? '' : path.substring(0, lastSlashIndex + 1);
     const fullPath = directory + filename;
 
     setIsProcessing(true);
@@ -107,32 +111,21 @@ export default function DataProcessing({
     setError(null);
 
     try {
-      // Create fill strategy object
-      const fill: Record<string, string | "mean" | "median" | "mode"> = {};
+      const fill: Record<string, string> = {};
       selectedColumnsForMissing.forEach((column) => {
         if (fillStrategy === "knn") {
           fill[column] = `knn:${knnK}`;
         } else {
-          fill[column] = fillStrategy as "mean" | "median" | "mode";
+          fill[column] = fillStrategy;
         }
       });
 
-      await dataApi.fillMissing(
-        path,
-        fill as Record<string, "mean" | "median" | "mode">
-      );
-
-      // The Flask API doesn't change the path, so we use the same path
-      onProcessingComplete(path);
+      await dataApi.fillMissing(path, fill as any);
+      const { columns: newColumns } = await dataApi.getColumns(path);
+      onProcessingComplete(path, newColumns);
     } catch (error) {
       console.error("Error filling missing values:", error);
-      if (error instanceof ApiError) {
-        setError(`Failed to fill missing values: ${error.message}`);
-      } else {
-        setError(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
-      }
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
     } finally {
       setIsProcessing(false);
     }
@@ -154,17 +147,11 @@ export default function DataProcessing({
         selectedColumnsForNormalization
       );
 
-      // The Flask API doesn't change the path, so we use the same path
-      onProcessingComplete(path);
+      const { columns: newColumns } = await dataApi.getColumns(path);
+      onProcessingComplete(path, newColumns);
     } catch (error) {
       console.error("Error normalizing data:", error);
-      if (error instanceof ApiError) {
-        setError(`Failed to normalize data: ${error.message}`);
-      } else {
-        setError(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
-      }
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
     } finally {
       setIsProcessing(false);
     }
@@ -186,17 +173,63 @@ export default function DataProcessing({
         selectedColumnsForCategorical
       );
 
-      // The Flask API doesn't change the path, so we use the same path
-      onProcessingComplete(path);
+      const { columns: newColumns } = await dataApi.getColumns(path);
+      onProcessingComplete(path, newColumns);
     } catch (error) {
       console.error("Error converting categorical data:", error);
-      if (error instanceof ApiError) {
-        setError(`Failed to convert categorical data: ${error.message}`);
-      } else {
-        setError(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
-      }
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBinarize = async () => {
+    if (!selectedColumnForBinarize) {
+      setError("Please select a column to binarize");
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const zero_group = binarizeZeroGroup
+        ? binarizeZeroGroup.split(',').map(s => s.trim())
+        : undefined;
+      const threshold = binarizeThreshold ? parseFloat(binarizeThreshold) : undefined;
+
+      await dataApi.binarize(path, selectedColumnForBinarize, { zero_group, threshold });
+
+      toast.success(`Column ${selectedColumnForBinarize} binarized`);
+      const { columns: newColumns } = await dataApi.getColumns(path);
+      onProcessingComplete(path, newColumns);
+    } catch (error) {
+      console.error("Error binarizing data:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleOrdinalMap = async () => {
+    if (!selectedColumnForOrdinal || !ordinalOrder) {
+      setError("Please select a column and provide the order");
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const order = ordinalOrder.split(',').map(s => s.trim());
+      await dataApi.ordinalMap(path, selectedColumnForOrdinal, order);
+
+      toast.success(`Column ${selectedColumnForOrdinal} ordinal mapped`);
+      const { columns: newColumns } = await dataApi.getColumns(path);
+      onProcessingComplete(path, newColumns);
+    } catch (error) {
+      console.error("Error ordinal mapping data:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
     } finally {
       setIsProcessing(false);
     }
@@ -208,54 +241,28 @@ export default function DataProcessing({
       return;
     }
 
-    // Use the first selected column for optimization
     const column = selectedColumnsForMissing[0];
-
     setIsGeneratingPlot(true);
     setError(null);
 
     try {
       const result = await dataApi.getKNNOptimization(path, column, 20);
-
       setOptimizationPlot(result.plot_url);
       setSuggestedK(result.optimal_k);
-      setKnnK(result.optimal_k); // Auto-set to optimal K
-
-      toast.success(`Optimal K found: ${result.optimal_k}`, {
-        description: `RMSE: ${result.min_error.toFixed(4)}`,
-      });
+      setKnnK(result.optimal_k);
+      toast.success(`Optimal K found: ${result.optimal_k}`);
     } catch (error) {
       console.error("Error generating KNN plot:", error);
-      if (error instanceof ApiError) {
-        setError(`Failed to generate plot: ${error.message}`);
-      } else {
-        setError(error instanceof Error ? error.message : "An unknown error occurred");
-      }
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
     } finally {
       setIsGeneratingPlot(false);
     }
   };
 
-  // Helper function to get K recommendation
   const getKRecommendation = (k: number) => {
-    if (k < 3)
-      return { text: "Too small - may overfit to noise", color: "text-red-600" };
-    if (k >= 3 && k <= 5)
-      return { text: "Good choice for most datasets", color: "text-green-600" };
-    if (k > 5 && k <= 10)
-      return {
-        text: "Balanced - good for larger datasets",
-        color: "text-blue-600",
-      };
-    if (k > 10 && k <= 15)
-      return {
-        text: "Conservative - smoother imputation",
-        color: "text-yellow-600",
-      };
-    return {
-      text: "High K - may oversimplify patterns",
-      color: "text-orange-600",
-    };
+    if (k < 3) return { text: "Too small", color: "text-red-600" };
+    if (k <= 5) return { text: "Balanced", color: "text-green-600" };
+    return { text: "Large K", color: "text-blue-600" };
   };
 
   const recommendation = getKRecommendation(knnK);
@@ -263,50 +270,32 @@ export default function DataProcessing({
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="missing">Fill Missing Values</TabsTrigger>
-          <TabsTrigger value="normalize">Normalize Data</TabsTrigger>
-          <TabsTrigger value="categorical">
-            Categorical to Numerical
-          </TabsTrigger>
-          <TabsTrigger value="save">Save Data</TabsTrigger>
+        <TabsList className="grid grid-cols-5">
+          <TabsTrigger value="missing">Missing</TabsTrigger>
+          <TabsTrigger value="normalize">Normalize</TabsTrigger>
+          <TabsTrigger value="categorical">Categorical</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
+          <TabsTrigger value="save">Save</TabsTrigger>
         </TabsList>
 
         <TabsContent value="missing">
           <Card>
-            <CardHeader>
-              <CardTitle>Fill Missing Values</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Fill Missing Values</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Select Columns</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
+                <div className="grid grid-cols-3 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
                   {columns.map((column) => (
                     <div key={column} className="flex items-center space-x-2">
                       <Checkbox
                         id={`missing-${column}`}
                         checked={selectedColumnsForMissing.includes(column)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedColumnsForMissing([
-                              ...selectedColumnsForMissing,
-                              column,
-                            ]);
-                          } else {
-                            setSelectedColumnsForMissing(
-                              selectedColumnsForMissing.filter(
-                                (col) => col !== column
-                              )
-                            );
-                          }
+                          if (checked) setSelectedColumnsForMissing([...selectedColumnsForMissing, column]);
+                          else setSelectedColumnsForMissing(selectedColumnsForMissing.filter(col => col !== column));
                         }}
                       />
-                      <label
-                        htmlFor={`missing-${column}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {column}
-                      </label>
+                      <Label htmlFor={`missing-${column}`}>{column}</Label>
                     </div>
                   ))}
                 </div>
@@ -314,208 +303,41 @@ export default function DataProcessing({
 
               <div className="space-y-2">
                 <Label>Fill Strategy</Label>
-                <RadioGroup
-                  value={fillStrategy}
-                  onValueChange={setFillStrategy}
-                  className="flex flex-col space-y-1"
-                >
+                <RadioGroup value={fillStrategy} onValueChange={setFillStrategy}>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="mean" id="mean" />
-                    <Label htmlFor="mean">Mean (for numeric columns)</Label>
+                    <RadioGroupItem value="mean" id="mean" /><Label htmlFor="mean">Mean</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="median" id="median" />
-                    <Label htmlFor="median">Median (for numeric columns)</Label>
+                    <RadioGroupItem value="median" id="median" /><Label htmlFor="median">Median</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="mode" id="mode" />
-                    <Label htmlFor="mode">Mode (for any column type)</Label>
+                    <RadioGroupItem value="mode" id="mode" /><Label htmlFor="mode">Mode</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="knn" id="knn" />
-                    <Label htmlFor="knn" className="flex items-center gap-2">
-                      KNN Imputer (numeric columns)
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-3 w-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-xs">
-                              Uses K nearest neighbors to predict missing values
-                              based on similar rows. More accurate than simple
-                              mean/median for correlated data.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
+                    <RadioGroupItem value="knn" id="knn" /><Label htmlFor="knn">KNN Imputer</Label>
                   </div>
                 </RadioGroup>
               </div>
 
-              {/* KNN K Parameter Selection */}
               {fillStrategy === "knn" && (
                 <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="knn-k" className="font-medium">
-                      Number of Neighbors (K)
-                    </Label>
-                    <span className="text-2xl font-bold text-primary">
-                      {knnK}
-                    </span>
+                    <Label htmlFor="knn-k">K = {knnK}</Label>
                   </div>
-
                   <Slider
-                    id="knn-k"
-                    min={1}
-                    max={20}
-                    step={1}
+                    min={1} max={20} step={1}
                     value={[knnK]}
                     onValueChange={(value) => setKnnK(value[0])}
-                    className="w-full"
                   />
-
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>1 (Less smooth)</span>
-                    <span>20 (More smooth)</span>
-                  </div>
-
-                  {/* Recommendation */}
-                  <div
-                    className={`flex items-start gap-2 p-3 rounded-md bg-background border ${recommendation.color === "text-green-600"
-                        ? "border-green-200 bg-green-50"
-                        : recommendation.color === "text-blue-600"
-                          ? "border-blue-200 bg-blue-50"
-                          : recommendation.color === "text-yellow-600"
-                            ? "border-yellow-200 bg-yellow-50"
-                            : "border-gray-200"
-                      }`}
-                  >
-                    <Info
-                      className={`h-4 w-4 mt-0.5 ${recommendation.color}`}
-                    />
-                    <div className="flex-1">
-                      <p
-                        className={`text-sm font-medium ${recommendation.color}`}
-                      >
-                        {recommendation.text}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {knnK <= 5 &&
-                          "Lower K captures local patterns but may be sensitive to noise."}
-                        {knnK > 5 &&
-                          knnK <= 10 &&
-                          "Moderate K balances between capturing patterns and avoiding noise."}
-                        {knnK > 10 &&
-                          "Higher K creates smoother estimates but may miss local variations."}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Quick presets */}
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Quick Presets:
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={knnK === 3 ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setKnnK(3)}
-                        className="flex-1 text-xs"
-                      >
-                        K=3 (Sensitive)
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={knnK === 5 ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setKnnK(5)}
-                        className="flex-1 text-xs"
-                      >
-                        K=5 (Balanced)
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={knnK === 10 ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setKnnK(10)}
-                        className="flex-1 text-xs"
-                      >
-                        K=10 (Smooth)
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Help text */}
-                  <div className="text-xs text-muted-foreground bg-background rounded p-2 border">
-                    <strong>How to choose K:</strong>
-                    <ul className="list-disc list-inside mt-1 space-y-0.5">
-                      <li>Small dataset (&lt;100 rows): K=3-5</li>
-                      <li>Medium dataset (100-1000 rows): K=5-10</li>
-                      <li>Large dataset (&gt;1000 rows): K=10-15</li>
-                      <li>Rule of thumb: K = √(number of rows)</li>
-                    </ul>
-                  </div>
-
-                  {/* Generate KNN Optimization Plot */}
-                  <div className="space-y-2">
-                    <Button
-                      onClick={handleGenerateKNNPlot}
-                      disabled={isGeneratingPlot || selectedColumnsForMissing.length === 0}
-                      className="w-full"
-                    >
-                      {isGeneratingPlot ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating Plot...
-                        </>
-                      ) : (
-                        "Generate KNN Optimization Plot"
-                      )}
-                    </Button>
-                    {optimizationPlot && (
-                      <div className="space-y-2">
-                        <Label>Optimization Plot</Label>
-                        <img
-                          src={optimizationPlot}
-                          alt="KNN Optimization Plot"
-                          className="w-full rounded-md border"
-                        />
-                        {suggestedK && (
-                          <p className="text-sm text-muted-foreground">
-                            Suggested K: <strong>{suggestedK}</strong>
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <Button onClick={handleGenerateKNNPlot} disabled={isGeneratingPlot} className="w-full">
+                    {isGeneratingPlot ? "Generating..." : "Optimize K"}
+                  </Button>
+                  {optimizationPlot && <img src={optimizationPlot} className="w-full rounded-md border" />}
                 </div>
               )}
 
-              {error && (
-                <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                onClick={handleFillMissingValues}
-                disabled={
-                  isProcessing || selectedColumnsForMissing.length === 0
-                }
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Fill Missing Values"
-                )}
+              <Button onClick={handleFillMissingValues} disabled={isProcessing || selectedColumnsForMissing.length === 0} className="w-full">
+                {isProcessing ? "Processing..." : "Apply Fill"}
               </Button>
             </CardContent>
           </Card>
@@ -523,85 +345,35 @@ export default function DataProcessing({
 
         <TabsContent value="normalize">
           <Card>
-            <CardHeader>
-              <CardTitle>Normalize Data</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Normalize Data</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Select Columns (numeric only)</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
+                <Label>Select Columns</Label>
+                <div className="grid grid-cols-3 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
                   {columns.map((column) => (
                     <div key={column} className="flex items-center space-x-2">
                       <Checkbox
                         id={`normalize-${column}`}
-                        checked={selectedColumnsForNormalization.includes(
-                          column
-                        )}
+                        checked={selectedColumnsForNormalization.includes(column)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedColumnsForNormalization([
-                              ...selectedColumnsForNormalization,
-                              column,
-                            ]);
-                          } else {
-                            setSelectedColumnsForNormalization(
-                              selectedColumnsForNormalization.filter(
-                                (col) => col !== column
-                              )
-                            );
-                          }
+                          if (checked) setSelectedColumnsForNormalization([...selectedColumnsForNormalization, column]);
+                          else setSelectedColumnsForNormalization(selectedColumnsForNormalization.filter(col => col !== column));
                         }}
                       />
-                      <label
-                        htmlFor={`normalize-${column}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {column}
-                      </label>
+                      <Label htmlFor={`normalize-${column}`}>{column}</Label>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label>Normalization Method</Label>
-                <Select
-                  value={normalizationMethod}
-                  onValueChange={setNormalizationMethod}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="zscore">
-                      Z-Score (Standard Scaling)
-                    </SelectItem>
-                    <SelectItem value="minmax">Min-Max Scaling</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                onClick={handleNormalizeData}
-                disabled={
-                  isProcessing || selectedColumnsForNormalization.length === 0
-                }
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Normalize Data"
-                )}
+              <Select value={normalizationMethod} onValueChange={setNormalizationMethod}>
+                <SelectTrigger><SelectValue placeholder="Method" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="zscore">Z-Score</SelectItem>
+                  <SelectItem value="minmax">Min-Max</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleNormalizeData} disabled={isProcessing || selectedColumnsForNormalization.length === 0} className="w-full">
+                Apply Normalization
               </Button>
             </CardContent>
           </Card>
@@ -609,142 +381,92 @@ export default function DataProcessing({
 
         <TabsContent value="categorical">
           <Card>
-            <CardHeader>
-              <CardTitle>Convert Categorical to Numerical</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Categorical to Numerical</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Select Categorical Columns</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
+                <Label>Select Columns</Label>
+                <div className="grid grid-cols-3 gap-2 border rounded-md p-3 max-h-40 overflow-y-auto">
                   {columns.map((column) => (
                     <div key={column} className="flex items-center space-x-2">
                       <Checkbox
                         id={`categorical-${column}`}
                         checked={selectedColumnsForCategorical.includes(column)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedColumnsForCategorical([
-                              ...selectedColumnsForCategorical,
-                              column,
-                            ]);
-                          } else {
-                            setSelectedColumnsForCategorical(
-                              selectedColumnsForCategorical.filter(
-                                (col) => col !== column
-                              )
-                            );
-                          }
+                          if (checked) setSelectedColumnsForCategorical([...selectedColumnsForCategorical, column]);
+                          else setSelectedColumnsForCategorical(selectedColumnsForCategorical.filter(col => col !== column));
                         }}
                       />
-                      <label
-                        htmlFor={`categorical-${column}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {column}
-                      </label>
+                      <Label htmlFor={`categorical-${column}`}>{column}</Label>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label>Encoding Method</Label>
-                <RadioGroup
-                  value={encodingMethod}
-                  onValueChange={setEncodingMethod}
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="label" id="label" />
-                    <Label htmlFor="label">
-                      Label Encoding (single column)
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="onehot" id="onehot" />
-                    <Label htmlFor="onehot">
-                      One-Hot Encoding (multiple columns)
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm">
-                  {error}
+              <RadioGroup value={encodingMethod} onValueChange={setEncodingMethod}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="label" id="label" /><Label htmlFor="label">Label Encoding</Label>
                 </div>
-              )}
-
-              <Button
-                onClick={handleCategoricalToNumerical}
-                disabled={
-                  isProcessing || selectedColumnsForCategorical.length === 0
-                }
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Convert Data"
-                )}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="onehot" id="onehot" /><Label htmlFor="onehot">One-Hot Encoding</Label>
+                </div>
+              </RadioGroup>
+              <Button onClick={handleCategoricalToNumerical} disabled={isProcessing || selectedColumnsForCategorical.length === 0} className="w-full">
+                Convert
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
 
+        <TabsContent value="advanced">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader><CardTitle>Binarization</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <Select value={selectedColumnForBinarize} onValueChange={setSelectedColumnForBinarize}>
+                  <SelectTrigger><SelectValue placeholder="Select column" /></SelectTrigger>
+                  <SelectContent>{columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+                <div className="space-y-1">
+                  <Label className="text-xs">Zero Group (comma separated)</Label>
+                  <input className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm" placeholder="e.g. CL0, CL1" value={binarizeZeroGroup} onChange={(e) => setBinarizeZeroGroup(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">OR Threshold</Label>
+                  <input type="number" className="flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm" placeholder="e.g. 0.5" value={binarizeThreshold} onChange={(e) => setBinarizeThreshold(e.target.value)} />
+                </div>
+                <Button onClick={handleBinarize} disabled={isProcessing || !selectedColumnForBinarize} className="w-full">Apply</Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle>Ordinal Mapping</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <Select value={selectedColumnForOrdinal} onValueChange={setSelectedColumnForOrdinal}>
+                  <SelectTrigger><SelectValue placeholder="Select column" /></SelectTrigger>
+                  <SelectContent>{columns.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+                <div className="space-y-1">
+                  <Label className="text-xs">Mapping Order (comma separated)</Label>
+                  <textarea className="flex min-h-[60px] w-full rounded-md border border-input px-3 py-1 text-sm" placeholder="e.g. Young, Middle, Old" value={ordinalOrder} onChange={(e) => setOrdinalOrder(e.target.value)} />
+                </div>
+                <Button onClick={handleOrdinalMap} disabled={isProcessing || !selectedColumnForOrdinal} className="w-full">Apply</Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="save">
           <Card>
-            <CardHeader>
-              <CardTitle>Save Processed Data</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Save Data</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="filename">Filename</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      id="filename"
-                      type="text"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="processed_data.csv"
-                      value={savePath}
-                      onChange={(e) => setSavePath(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSaveData}
-                    disabled={isProcessing || !savePath}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Save your processed dataset to a new CSV file.
-                </p>
+              <div className="flex gap-2">
+                <input className="flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm" placeholder="filename.csv" value={savePath} onChange={(e) => setSavePath(e.target.value)} />
+                <Button onClick={handleSaveData} disabled={isProcessing || !savePath}><Save className="mr-2 h-4 w-4" />Save</Button>
               </div>
-
-              {error && (
-                <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+      {error && <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">{error}</div>}
     </div>
   );
 }

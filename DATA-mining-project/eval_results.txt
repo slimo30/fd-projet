@@ -1,0 +1,14 @@
+﻿Evaluating Preprocessing Quality for Cannabis Classification:
+============================================================
+
+Model: Decision Tree
+Baseline            : F1-Score = 0.3327, Accuracy = 0.3369
+Binary              : F1-Score = 0.8089, Accuracy = 0.8064
+Binary+Scaling      : F1-Score = 0.8089, Accuracy = 0.8064
+
+Model: K-Nearest Neighbors
+Baseline            : F1-Score = 0.3654, Accuracy = 0.3926
+Binary              : F1-Score = 0.8469, Accuracy = 0.8435
+Binary+Scaling      : F1-Score = 0.8395, Accuracy = 0.8355
+
+Conclusion: Binary target simplification significantly improves F1-scores.

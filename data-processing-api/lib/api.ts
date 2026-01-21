@@ -210,6 +210,34 @@ export const dataApi = {
   },
 
   /**
+   * Binarize column
+   */
+  binarize: async (
+    path: string,
+    column: string,
+    options: { zero_group?: string[], threshold?: number }
+  ): Promise<{ message: string }> => {
+    return apiFetch('/data/binarize', {
+      method: 'POST',
+      body: JSON.stringify({ path, column, ...options }),
+    });
+  },
+
+  /**
+   * Ordinal map column
+   */
+  ordinalMap: async (
+    path: string,
+    column: string,
+    order: string[]
+  ): Promise<{ message: string }> => {
+    return apiFetch('/data/ordinal-map', {
+      method: 'POST',
+      body: JSON.stringify({ path, column, order }),
+    });
+  },
+
+  /**
    * Save data
    */
   saveData: async (newPath: string): Promise<{
